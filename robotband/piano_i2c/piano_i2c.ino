@@ -16,7 +16,6 @@ bool off = false;
 // I2C global variables
 bool i2c = true;
 
-
 uint8_t servonum = 0;
 void setup() {
   // put your setup code here, to run once:
@@ -39,22 +38,6 @@ void loop() {
     Serial.println(Wire.available());
     Wire.endTransmission();
   }
-  /*
-  if (simple) {
-    my_servo.write(max_angle);
-    delay(simple_rate);
-    my_servo.write(0);
-    delay(simple_rate);
-  } else {
-    for (pos = 0; pos <= max_angle; pos += 1) {
-      my_servo.write(pos);
-      delay(rate);
-    }
-    for (pos = max_angle; pos >= 0; pos -= 1) {
-      my_servo.write(pos);
-      delay(rate);
-    }
-  }
-  */
+
   delay(500);
 }
