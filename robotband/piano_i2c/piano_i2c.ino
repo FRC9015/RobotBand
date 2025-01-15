@@ -1,10 +1,8 @@
 
 #include <Servo.h>
-//#include <VarSpeedServo.h>
 #include <Wire.h>
 
-// Variable for the single connected server.
-// Servo my_servo;
+
 // Global variables (program settings)
 int pos = 0; // Variable for current position
 int max_angle = 25; // Furthest motor should turn (between 0 and 180, inclusive)
@@ -21,10 +19,7 @@ void setup() {
   // put your setup code here, to run once:
   Wire.begin();
   Serial.begin(9600);
-  Wire.setClock(400000);
 
-  //my_servo.attach(9);
-  //my_servo.write(0);
 }
 
 void loop() {
@@ -34,7 +29,7 @@ void loop() {
     return;
   }
   if (i2c){
-    Wire.beginTransmission(1);
+    Wire.beginTransmission(8);
     Serial.println(Wire.available());
     Wire.endTransmission();
   }
