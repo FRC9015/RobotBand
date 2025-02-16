@@ -12,7 +12,13 @@
 
 
 
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+Adafruit_PWMServoDriver pwm[4] = {
+  Adafruit_PWMServoDriver(0x40),
+  Adafruit_PWMServoDriver(0x41),
+  Adafruit_PWMServoDriver(0x42),
+  Adafruit_PWMServoDriver(0x43)};
+int invertedKeys[7] = {0,4,7,11,14,17,21};
+int blackKeys[5] = {1,3,6,8,10};
 // need to figure out if we are going ot have this big array containing all the information or if we will use the index of the note to find out the address of the servo or if we just index through the array until we find the right note or if we want to have multiple arrays for each individual thing that can correspond to address,note,and num or smth
 
 
@@ -24,47 +30,45 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 // Fourth parameter is the velocity (64 = normal, 127 = fastest).
 
 void setup() {
-  // put your setup code here, to run once:
-  // for(uint8_t i; i < sizeof(servos); i++){
-  //   if(isDigit(servos[i].charAt(2))){
-
-  //   } else if(isDigit(servos[i].charAt(1))){
-
-  //   } else{
-  //     Serial.println("There is an Error in the notes!");
-  //     break;
-  //   }
-  // }
-
   Serial.begin(115200);
-  pwm.begin();
-  pwm.setPWMFreq(50);  //The analog servo frequency is about 50Hz
+  delay(5000);
+  Serial.println("Starting!");
+  for(int i = 0; i < 4; i++){
+    pwm[i].begin();
+    pwm[i].setPWMFreq(50);
+    for(int j = 0;j<16;j++){
+      pwm[i].setPWM(j,0,STALLANGLE);
+    }
+  }
 
   
 }
 
-// void pressNote(float noteDuration, int note, float tempo){
-//   pwm.setPWM(note, 0, PRESSANGLE);
-//   delay(noteDuration * 1000 * 60/tempo);
-//   pwm.setPWM(note, 0, STALLANGLE);
-// }
-
-
-// void cycleServo(uint8_t servonum, float noteDuration, float tempo){
-//   pwm.setPWM(servonum, 0, SERVOMIN);
-//   delay(noteDuration * 1000 * 60/tempo);
-//   pwm.setPWM(servonum, 0, SERVOMAX);
-//   delay(noteDuration * 1000 * 60/tempo);
-// }
-void pressNote(midiEventPacket_t r) {
-  int index = r.byte2 - 37;
-  int pressing = index % I2C_SERVOS;
-  if (r.byte2 <= 96 && r.byte2 >= 36) {
-    if (pressing % 2 != 0){
-      pwm.setPWM(pressing, 0, PRESSANGLE);
-    } else { 
-      pwm.setPWM(pressing, 0, STALLANGLE);
+bool isInverted(int index) {
+  int newIndex = index % 24;
+  for (int i = 0; i < 14; i++){
+    if (invertedKeys[i] == newIndex){
+      return true;
     }
+  }
+  return false;
+}
+bool isBlackKey(int index){
+  int newIndex = index % 12;
+  for (int i = 0; i < 5; i++){
+    if (blackKeys[i] == newIndex){
+      return true;
+    }
+  }
+  return false;
+}
+
+void pressNote(midiEventPacket_t r) {
+  int index = r.byte2 - 36; //account for missing octaves from the midi input
+  int pressing = index % I2C_SERVOS;
+  int pwmNumber = index / I2C_SERVOS;
+  if (r.byte2 <= 96 && r.byte2 >= 36) {
+    pwm[pwmNumber].setPWM(pressing, 0, (isBlackKey(index)) ? SERVOMIN : (isInverted(index)) ? STALLANGLE : PRESSANGLE);
     Serial.print(index);
     Serial.print(" Servo: ");
     Serial.print(pressing);
@@ -72,14 +76,11 @@ void pressNote(midiEventPacket_t r) {
   }
 }
 void releaseNote(midiEventPacket_t r) {
-  int index = r.byte2 - 37;
+  int index = r.byte2 - 36;
   int pressing = index % I2C_SERVOS;
+  int pwmNumber = index / I2C_SERVOS;
   if (r.byte2 <= 96 && r.byte2 >= 36) {
-    if (pressing % 2 != 0){
-      pwm.setPWM(pressing, 0, STALLANGLE);
-    } else { 
-      pwm.setPWM(pressing, 0, PRESSANGLE);
-    }
+    pwm[pwmNumber].setPWM(pressing, 0, (isBlackKey(index)) ? SERVOMAX : (isInverted(index)) ? PRESSANGLE : STALLANGLE);
     Serial.print(index);
     Serial.print(" Servo: ");
     Serial.print(index % I2C_SERVOS);
@@ -88,18 +89,18 @@ void releaseNote(midiEventPacket_t r) {
 }
 void cycle(){
   for(int i = 0;i<16;i++){
-    pwm.setPWM(i,0,PRESSANGLE);
+    pwm[0].setPWM(i,0,PRESSANGLE);
     delay(1000);
   }
   for(int i = 0; i < 16; i++){
-    pwm.setPWM(i,0,STALLANGLE);
+    pwm[0].setPWM(i,0,STALLANGLE);
     delay(1000);
   }
 }
 void cycleServo(int servonum){
-  pwm.setPWM(servonum,0,PRESSANGLE);
+  pwm[0].setPWM(servonum,0,SERVOMIN);
   delay(500);
-  pwm.setPWM(servonum,0,STALLANGLE);
+  pwm[0].setPWM(servonum,0,SERVOMAX);
   delay(500);
 }
 
@@ -110,6 +111,7 @@ void loop() {
   do {
     rx = MidiUSB.read();
     if ((0x0f & rx.byte1) == 0 && rx.byte3 == 0x64) {
+      Serial.println("press");
       //send back the received MIDI command
       pressNote(rx);  
     } else {
